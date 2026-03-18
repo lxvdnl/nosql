@@ -1,0 +1,97 @@
+version: "3.9"
+
+services:
+  cfg1:
+    image: mongo:7.0
+    container_name: cfg1
+    command: ["mongod", "--configsvr", "--replSet", "cfg-rs", "--port", "27019", "--bind_ip_all"]
+    ports:
+      - "27191:27019"
+    volumes:
+      - cfg1_data:/data/db
+    networks:
+      - mongo-cluster
+
+  cfg2:
+    image: mongo:7.0
+    container_name: cfg2
+    command: ["mongod", "--configsvr", "--replSet", "cfg-rs", "--port", "27019", "--bind_ip_all"]
+    ports:
+      - "27192:27019"
+    volumes:
+      - cfg2_data:/data/db
+    networks:
+      - mongo-cluster
+
+  cfg3:
+    image: mongo:7.0
+    container_name: cfg3
+    command: ["mongod", "--configsvr", "--replSet", "cfg-rs", "--port", "27019", "--bind_ip_all"]
+    ports:
+      - "27193:27019"
+    volumes:
+      - cfg3_data:/data/db
+    networks:
+      - mongo-cluster
+
+  shard1:
+    image: mongo:7.0
+    container_name: shard1
+    command: ["mongod", "--shardsvr", "--replSet", "shard1-rs", "--port", "27018", "--bind_ip_all"]
+    ports:
+      - "27181:27018"
+    volumes:
+      - shard1_data:/data/db
+    networks:
+      - mongo-cluster
+
+  shard2:
+    image: mongo:7.0
+    container_name: shard2
+    command: ["mongod", "--shardsvr", "--replSet", "shard2-rs", "--port", "27018", "--bind_ip_all"]
+    ports:
+      - "27182:27018"
+    volumes:
+      - shard2_data:/data/db
+    networks:
+      - mongo-cluster
+
+  mongos:
+    image: mongo:7.0
+    container_name: mongos
+    command: ["mongos", "--configdb", "cfg-rs/cfg1:27019,cfg2:27019,cfg3:27019", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27017:27017"
+    depends_on:
+      - cfg1
+      - cfg2
+      - cfg3
+    networks:
+      - mongo-cluster
+
+  mongo-setup:
+    image: mongo:7.0
+    container_name: mongo-setup
+    depends_on:
+      - cfg1
+      - cfg2
+      - cfg3
+      - shard1
+      - shard2
+      - mongos
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: ["bash", "/scripts/init-cluster.sh"]
+    networks:
+      - mongo-cluster
+
+volumes:
+  cfg1_data:
+  cfg2_data:
+  cfg3_data:
+  shard1_data:
+  shard2_data:
+
+networks:
+  mongo-cluster:
+    driver: bridge
